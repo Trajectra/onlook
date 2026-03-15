@@ -222,4 +222,38 @@ export const githubRouter = createTRPCRouter({
             }
         }),
 
+
+    convertAppManifest: protectedProcedure
+        .input(z.object({ code: z.string() }))
+        .mutation(async ({ input }) => {
+            const resp = await fetch(`https://api.github.com/app-manifests/${input.code}/conversions`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!resp.ok) {
+                const text = await resp.text();
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: `GitHub manifest conversion failed: ${text}`,
+                });
+            }
+            const data = await resp.json() as {
+                id: number;
+                slug: string;
+                pem: string;
+                client_id: string;
+                client_secret: string;
+            };
+            return {
+                appId: String(data.id),
+                slug: data.slug,
+                privateKey: data.pem,
+                clientId: data.client_id,
+                clientSecret: data.client_secret,
+            };
+        }),
+
 });

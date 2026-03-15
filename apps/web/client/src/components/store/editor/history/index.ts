@@ -91,16 +91,12 @@ export class HistoryManager {
                 });
                 break;
             case 'insert-element':
-                this.editorEngine.posthog.capture('insert_action');
                 break;
             case 'move-element':
-                this.editorEngine.posthog.capture('move_action');
                 break;
             case 'remove-element':
-                this.editorEngine.posthog.capture('remove_action');
                 break;
             case 'edit-text':
-                this.editorEngine.posthog.capture('edit_text_action');
         }
     };
 

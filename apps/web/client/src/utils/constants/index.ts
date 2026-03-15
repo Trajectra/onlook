@@ -34,6 +34,8 @@ export const Routes = {
     CALLBACK_STRIPE_SUCCESS: '/callback/stripe/success',
     CALLBACK_STRIPE_CANCEL: '/callback/stripe/cancel',
     CALLBACK_GITHUB_INSTALL: '/callback/github/install',
+    CALLBACK_GITHUB_APP_SETUP: '/callback/github/app-setup',
+    SETUP_GITHUB_APP: '/setup/github-app',
 } as const;
 
 export const ExternalRoutes = {

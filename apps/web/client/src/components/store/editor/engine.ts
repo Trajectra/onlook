@@ -2,7 +2,7 @@ import { makeAutoObservable } from 'mobx';
 
 import type { CodeFileSystem } from '@onlook/file-system';
 import { type Branch } from '@onlook/models';
-import type { PostHog } from 'posthog-js/react';
+interface NoOpCapture { capture: (...args: any[]) => void; }
 import { ActionManager } from './action';
 import { ApiManager } from './api';
 import { AstManager } from './ast';
@@ -32,7 +32,7 @@ import { ThemeManager } from './theme';
 
 export class EditorEngine {
     readonly projectId: string;
-    readonly posthog: PostHog;
+    readonly posthog: NoOpCapture;
     readonly branches: BranchManager = new BranchManager(this);
 
     get activeSandbox(): SandboxManager {
@@ -72,7 +72,7 @@ export class EditorEngine {
     readonly api: ApiManager = new ApiManager(this);
     readonly ide: IdeManager = new IdeManager(this);
 
-    constructor(projectId: string, posthog: PostHog) {
+    constructor(projectId: string, posthog: NoOpCapture = { capture: () => {} }) {
         this.projectId = projectId;
         this.posthog = posthog;
         makeAutoObservable(this);

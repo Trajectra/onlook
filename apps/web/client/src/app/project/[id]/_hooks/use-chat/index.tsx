@@ -7,7 +7,6 @@ import { useChat as useAiChat } from '@ai-sdk/react';
 import { ChatType, type ChatMessage, type GitMessageCheckpoint, type MessageContext, type QueuedMessage } from '@onlook/models';
 import { jsonClone } from '@onlook/utility';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls, type FinishReason } from 'ai';
-import { usePostHog } from 'posthog-js/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -35,7 +34,6 @@ interface UseChatProps {
 
 export function useChat({ conversationId, projectId, initialMessages }: UseChatProps) {
     const editorEngine = useEditorEngine();
-    const posthog = usePostHog();
 
     const [finishReason, setFinishReason] = useState<FinishReason | null>(null);
     const [isExecutingToolCall, setIsExecutingToolCall] = useState(false);
@@ -105,7 +103,6 @@ export function useChat({ conversationId, projectId, initialMessages }: UseChatP
 
     const sendMessage: SendMessage = useCallback(
         async (content: string, type: ChatType) => {
-            posthog.capture('user_send_message', { type });
 
             const context = await editorEngine.chat.context.getContextByChatType(type);
 
@@ -130,7 +127,7 @@ export function useChat({ conversationId, projectId, initialMessages }: UseChatP
 
             return getUserChatMessageFromString(content, [], conversationId);
         },
-        [processMessage, posthog, editorEngine.chat.context, isStreaming, queuedMessages.length, conversationId],
+        [processMessage, editorEngine.chat.context, isStreaming, queuedMessages.length, conversationId],
     );
 
     const processMessageEdit = useCallback(
@@ -203,7 +200,6 @@ export function useChat({ conversationId, projectId, initialMessages }: UseChatP
 
     const editMessage: EditMessage = useCallback(
         async (messageId: string, newContent: string, chatType: ChatType) => {
-            posthog.capture('user_edit_message', { type: ChatType.EDIT });
 
             if (isStreaming) {
                 // Stop current streaming immediately
@@ -217,7 +213,7 @@ export function useChat({ conversationId, projectId, initialMessages }: UseChatP
             // Normal edit processing when not streaming
             return processMessageEdit(messageId, newContent, chatType);
         },
-        [processMessageEdit, posthog, isStreaming, stop, editorEngine.chat.context],
+        [processMessageEdit, isStreaming, stop, editorEngine.chat.context],
     );
 
     useEffect(() => {

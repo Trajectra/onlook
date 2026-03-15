@@ -72,7 +72,15 @@ export const ConnectGithub = () => {
                             ? <Icons.Check className="w-5 h-5 text-green-500" />
                             : <Icons.GitHubLogo className="w-5 h-5" />,
                     })}
-                    {installation.error && (
+                    {!installation.hasInstallation && !installation.isChecking && (
+                <div className="mt-2 text-xs text-center">
+                    <span className="text-gray-400">First time? </span>
+                    <a href="/setup/github-app" target="_blank" className="text-blue-400 hover:underline">
+                        Create the Onlook GitHub App
+                    </a>
+                </div>
+            )}
+            {installation.error && (
                         <div className="mt-4 p-3 bg-red-900 border border-red-800 rounded-md">
                             <div className="text-red-100 text-sm">{installation.error}</div>
                         </div>

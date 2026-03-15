@@ -8,7 +8,16 @@ import path from 'node:path';
 import './src/env';
 
 const nextConfig: NextConfig = {
+
     devIndicators: false,
+    webpack: (config) => {
+        // Limit parallelism to reduce memory usage on low-RAM servers
+        config.parallelism = 1;
+        if (config.cache) {
+            config.cache = false;
+        }
+        return config;
+    },
     ...(process.env.STANDALONE_BUILD === 'true' && { output: 'standalone' }),
     eslint: {
         // Don't run ESLint during builds - handle it separately in CI

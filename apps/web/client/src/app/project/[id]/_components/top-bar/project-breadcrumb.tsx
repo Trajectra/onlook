@@ -18,7 +18,6 @@ import { cn } from '@onlook/ui/utils';
 import { observer } from 'mobx-react-lite';
 import { useTranslations } from 'next-intl';
 import { redirect } from 'next/navigation';
-import { usePostHog } from 'posthog-js/react';
 import { useRef, useState } from 'react';
 import { CloneProjectDialog } from '../clone-project-dialog';
 import { NewProjectMenu } from './new-project-menu';
@@ -27,7 +26,6 @@ import { RecentProjectsMenu } from './recent-projects';
 export const ProjectBreadcrumb = observer(() => {
     const editorEngine = useEditorEngine();
     const stateManager = useStateManager();
-    const posthog = usePostHog();
     const { data: project } = api.project.get.useQuery({ projectId: editorEngine.projectId });
     const { data: subscription } = api.subscription.get.useQuery();
     const isPro = subscription?.product.type === ProductType.PRO;
@@ -73,10 +71,6 @@ export const ProjectBreadcrumb = observer(() => {
             if (result) {
                 window.open(result.downloadUrl, '_blank');
 
-                posthog.capture('download_project_code', {
-                    projectId: project.id,
-                    projectName: project.name,
-                });
 
                 toast.success(t(transKeys.projects.actions.downloadSuccess));
             } else {
@@ -88,10 +82,6 @@ export const ProjectBreadcrumb = observer(() => {
                 description: error instanceof Error ? error.message : 'Unknown error',
             });
 
-            posthog.capture('download_project_code_failed', {
-                projectId: project.id,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
         } finally {
             setIsDownloading(false);
         }

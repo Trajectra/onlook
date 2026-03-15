@@ -1,7 +1,6 @@
 'use client';
 
 import type { Branch, Project } from '@onlook/models';
-import { usePostHog } from 'posthog-js/react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { EditorEngine } from './engine';
 
@@ -22,7 +21,7 @@ export const EditorEngineProvider = ({
     project: Project,
     branches: Branch[],
 }) => {
-    const posthog = usePostHog();
+    const posthog = { capture: () => {} };
     const currentProjectId = useRef(project.id);
     const engineRef = useRef<EditorEngine | null>(null);
 
