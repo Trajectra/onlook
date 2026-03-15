@@ -33,6 +33,7 @@ export const LoginButton = ({
         try {
             await handleLogin(method, returnUrl ?? null);
         } catch (error) {
+            if (error instanceof Error && (error.message === "NEXT_REDIRECT" || (error as any).digest?.startsWith("NEXT_REDIRECT"))) return;
             console.error(`Error signing in with ${providerName}:`, error);
             toast.error(`Error signing in with ${providerName}`, {
                 description: error instanceof Error ? error.message : 'Please try again.',

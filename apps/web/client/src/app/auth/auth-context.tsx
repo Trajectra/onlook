@@ -9,6 +9,15 @@ import { devLogin, login } from '../login/actions';
 
 const LAST_SIGN_IN_METHOD_KEY = 'lastSignInMethod';
 
+// Next.js redirect() throws a special error internally — not a real error
+function isNextRedirect(error: unknown): boolean {
+    return (
+        error instanceof Error &&
+        (error.message === 'NEXT_REDIRECT' ||
+            (error as any).digest?.startsWith('NEXT_REDIRECT'))
+    );
+}
+
 interface AuthContextType {
     signingInMethod: SignInMethod | null;
     lastSignInMethod: SignInMethod | null;
@@ -42,6 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await localforage.setItem(LAST_SIGN_IN_METHOD_KEY, method);
             await login(method);
         } catch (error) {
+            // redirect() in server actions throws NEXT_REDIRECT — not a real error
+            if (isNextRedirect(error)) return;
             console.error('Error signing in with method:', method, error);
             throw error;
         } finally {
@@ -57,11 +68,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
             await devLogin();
         } catch (error) {
+            if (isNextRedirect(error)) return;
             console.error('Error signing in with password:', error);
         } finally {
             setSigningInMethod(null);
         }
-    }
+    };
 
     return (
         <AuthContext.Provider value={{ signingInMethod, lastSignInMethod, handleLogin, handleDevLogin, isAuthModalOpen, setIsAuthModalOpen }}>
@@ -76,4 +88,4 @@ export const useAuthContext = () => {
         throw new Error('useAuthContext must be used within a AuthProvider');
     }
     return context;
-}; 
+};
