@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-deploy:
-    name: Build (webpack) and Deploy
+    name: Build and Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -22,29 +22,33 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles("**/bun.lock") }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-        working-directory: .
 
       - name: Create .env file
         working-directory: apps/web/client
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER: ${{ secrets.OPENROUTER_API_KEY }}
+          CSB: ${{ secrets.CSB_API_KEY }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: |
-          cat > .env << ENVEOF
-          NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
-          CSB_API_KEY=${{ secrets.CSB_API_KEY }}
-          AUTH_SECRET=${{ secrets.AUTH_SECRET }}
-          NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
-          SKIP_ENV_VALIDATION=1
-          ENVEOF
+          printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$SUPABASE_URL" > .env
+          printf 'NEXT_PUBLIC_SUPABASE_ANON_KEY=%s\n' "$SUPABASE_ANON" >> .env
+          printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$SUPABASE_SERVICE" >> .env
+          printf 'OPENROUTER_API_KEY=%s\n' "$OPENROUTER" >> .env
+          printf 'CSB_API_KEY=%s\n' "$CSB" >> .env
+          printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET" >> .env
+          printf 'NEXT_PUBLIC_APP_URL=%s\n' "$APP_URL" >> .env
+          echo "SKIP_ENV_VALIDATION=1" >> .env
 
-      - name: Build Next.js app (webpack)
+      - name: Build Next.js app
         working-directory: apps/web/client
         env:
           STANDALONE_BUILD: "true"
@@ -52,43 +56,44 @@ jobs:
           SKIP_ENV_VALIDATION: "1"
         run: npx next build --webpack
 
-      - name: Package build output
+      - name: Package standalone build
         working-directory: apps/web/client
         run: |
           cp -r public .next/standalone/apps/web/client/
           cp -r .next/static .next/standalone/apps/web/client/.next/
-          tar -czf /tmp/onlook-build.tar.gz -C .next/standalone .
+          tar -czf onlook-build.tar.gz -C .next/standalone .
+          ls -lh onlook-build.tar.gz
 
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            pm2 stop onlook 2>/dev/null || true
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Upload build to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: /tmp/onlook-build.tar.gz
-          target: /tmp/
-          strip_components: 2
-
-      - name: Extract and restart
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            rm -rf /root/onlook/apps/web/client/.next/standalone
-            mkdir -p /root/onlook/apps/web/client/.next/standalone
-            tar -xzf /tmp/onlook-build.tar.gz -C /root/onlook/apps/web/client/.next/standalone
-            pm2 delete onlook 2>/dev/null || true
-            pm2 start /root/onlook/ecosystem.config.cjs 2>/dev/null || \
-              pm2 start /root/onlook/apps/web/client/.next/standalone/apps/web/client/server.js --name onlook
-            echo "Deployment complete!"
+      - name: Upload and deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          # Upload tarball
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            apps/web/client/onlook-build.tar.gz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/onlook-build.tar.gz"
+          
+          # Deploy on server
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" bash << 'REMOTE'
+          set -e
+          pm2 stop onlook 2>/dev/null || true
+          rm -rf /root/onlook/apps/web/client/.next/standalone
+          mkdir -p /root/onlook/apps/web/client/.next/standalone
+          tar -xzf /tmp/onlook-build.tar.gz -C /root/onlook/apps/web/client/.next/standalone
+          rm -f /tmp/onlook-build.tar.gz
+          pm2 delete onlook 2>/dev/null || true
+          pm2 start /root/onlook/ecosystem.config.cjs 2>/dev/null || \
+            pm2 start /root/onlook/apps/web/client/.next/standalone/apps/web/client/server.js \
+              --name onlook -- --port 3001
+          pm2 save
+          echo "Deployment complete!"
+          REMOTE
