@@ -11,20 +11,51 @@ import { userSettingsRouter } from './user-settings';
 export const userRouter = createTRPCRouter({
     get: protectedProcedure.query(async ({ ctx }) => {
         const authUser = ctx.user;
-        const user = await ctx.db.query.users.findFirst({
+        let user = await ctx.db.query.users.findFirst({
             where: eq(users.id, authUser.id),
         });
 
         const { displayName, firstName, lastName } = getUserName(authUser);
-        const userData = user ? fromDbUser({
+
+        // Auto-upsert user on first access (no DB trigger configured)
+        if (!user) {
+            const userData = {
+                id: authUser.id,
+                firstName,
+                lastName,
+                displayName,
+                email: authUser.email,
+                avatarUrl: authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.avatarUrl ?? null,
+            };
+            const [inserted] = await ctx.db
+                .insert(users)
+                .values(userData)
+                .onConflictDoUpdate({
+                    target: [users.id],
+                    set: { ...userData, updatedAt: new Date() },
+                })
+                .returning();
+            user = inserted ?? null;
+
+            // Fire-and-forget side effects
+            trackEvent({
+                distinctId: authUser.id,
+                event: 'user_first_signup',
+                properties: { email: userData.email, firstName, lastName, displayName, source: 'web' },
+            }).catch(() => {});
+            callUserWebhook({ email: userData.email, firstName, lastName, source: 'web', subscribed: false }).catch(() => {});
+        }
+
+        if (!user) return null;
+
+        return fromDbUser({
             ...user,
             firstName: user.firstName ?? firstName,
             lastName: user.lastName ?? lastName,
             displayName: user.displayName ?? displayName,
             email: user.email ?? authUser.email,
-            avatarUrl: user.avatarUrl ?? authUser.user_metadata.avatarUrl,
-        }) : null;
-        return userData;
+            avatarUrl: user.avatarUrl ?? authUser.user_metadata?.avatar_url ?? authUser.user_metadata?.avatarUrl,
+        });
     }),
     getById: protectedProcedure.input(z.string()).query(async ({ ctx, input }) => {
         const user = await ctx.db.query.users.findFirst({
