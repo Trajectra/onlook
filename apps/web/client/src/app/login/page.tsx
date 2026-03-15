@@ -34,14 +34,7 @@ export default function LoginPage() {
                             {t(transKeys.welcome.description)}
                         </p>
                     </div>
-                    <div className="space-y-2 md:space-y-0 md:space-x-2 flex flex-col md:flex-row">
-                        <LoginButton
-                            returnUrl={returnUrl}
-                            method={SignInMethod.GITHUB}
-                            icon={<Icons.GitHubLogo className="w-4 h-4 mr-2" />}
-                            translationKey="github"
-                            providerName="GitHub"
-                        />
+                    <div className="space-y-2 flex flex-col">
                         <LoginButton
                             returnUrl={returnUrl}
                             method={SignInMethod.GOOGLE}
@@ -50,7 +43,7 @@ export default function LoginPage() {
                             providerName="Google"
                         />
                     </div>
-                    {isDev && <DevLoginButton returnUrl={returnUrl} />}
+                    <DevLoginButton returnUrl={returnUrl} />
                     <p className="text-small text-foreground-onlook">
                         {t(transKeys.welcome.terms.agreement)}{' '}
                         <Link

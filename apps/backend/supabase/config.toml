@@ -8,12 +8,20 @@ extra_search_path = ["public"]
 max_rows = 100
 
 [auth]
-site_url = "https://onlook.com"
+site_url = "https://onlook.trajectralabs.dev"
 additional_redirect_urls = [
+    "https://onlook.trajectralabs.dev",
+    "https://onlook.trajectralabs.dev/auth/callback",
     "http://localhost:3000",
     "http://localhost:3000/auth/callback",
 ]
 jwt_expiry = 36000
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
 
 [db]
 port = 54322
@@ -22,16 +30,16 @@ port = 54322
 port = 54323
 
 [auth.external.github]
-enabled = true
+enabled = false
 client_id = "env(GITHUB_CLIENT_ID)"
 secret = "env(GITHUB_SECRET)"
-redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+redirect_uri = "https://onlook.trajectralabs.dev/sb/auth/v1/callback"
 
 [auth.external.google]
 enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_SECRET)"
-redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
+redirect_uri = "https://onlook.trajectralabs.dev/sb/auth/v1/callback"
 
 [analytics]
 enabled = true
